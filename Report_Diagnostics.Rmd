@@ -1,0 +1,243 @@
+---
+title: "Informe de Caracterización - OHDSI Spanish Node"
+subtitle: "Caracterización automática de datos OMOP CDM"
+author: ""
+#date: "`r format(Sys.Date(), '%d/%m/%Y')`"
+date: "08/05/2026"
+output: 
+  pdf_document:
+toc: true
+number_sections: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, error = TRUE)
+library(OmopSketch)
+library(CDMConnector)
+library(dplyr)
+library(omopgenerics)
+library(DBI)
+library(flextable)
+```
+
+```{r config, include=FALSE}
+# Cargamos la configuración del archivo externo
+source("config.R")
+```
+
+```{r con, include=FALSE}
+# Establecemos conexión
+if(driver_type == "PostgreSQL") {
+  con <- DBI::dbConnect(drv=RPostgres::Postgres(),
+                        dbname=db_name, 
+                        host=db_host, 
+                        user=db_user, 
+                        password=db_pass, 
+                        port=db_port)
+} else {
+}
+
+cdm <- cdmFromCon(
+  con = con, 
+  cdmSchema = cdm_schema, 
+  writeSchema = write_schema, 
+  cdmName = nombre_centro
+)
+```
+
+```{r aux, include=FALSE}
+# Inicializamos variables de nombres de archivo para evitar errores de "object not found"
+out_name <- if(exists("nombre_centro")) gsub(" ", "_", nombre_centro) else "Centro"
+file_shiny <- paste0("Results_SpanishNode_", out_name, "_", format(Sys.Date(), "%Y%m%d"), ".csv")
+file_local <- paste0("Revision_Detalles_", out_name, "_", format(Sys.Date(), "%Y%m%d"), ".csv")
+
+report_error <- function(e) {
+  cat("\n\n> **Error en este apartado:** No se han podido generar los datos para esta sección. Esto puede deberse a la ausencia de registros en la tabla correspondiente.\n\n")
+}
+```
+
+\newpage
+
+## Introducción
+
+Este informe presenta la caracterización automática del centro `r nombre_centro` siguiendo el protocolo estandarizado del Spanish Node de OHDSI.
+
+
+## Snapshot del CDM
+
+Resumen global de metadatos y versiones de vocabulario.
+
+```{r snapshot}
+tryCatch({
+  res_snapshot <- summariseOmopSnapshot(cdm)
+  tableOmopSnapshot(res_snapshot, type = "flextable") %>% 
+  flextable::set_table_properties(width = 1, layout = "fixed") %>%
+  flextable::width(j = 1, width = 1.5) %>% 
+  flextable::width(j = 2, width = 4) %>%
+  flextable::fontsize(size = 9, part = "all") %>%
+  flextable::valign(valign = "top", part = "all")
+}, error = report_error)
+```
+
+## Demografía
+
+Distribución de la población por sexo y año de nacimiento.
+
+```{r person}
+tryCatch({
+  res_person <- summarisePerson(cdm)
+  tablePerson(res_person, type = "flextable")
+}, error = report_error)
+
+tryCatch({
+  plotPerson(res_person, variableName = "Sex", type = "ggplot")
+}, error = report_error)
+```
+
+## Períodos de Observación
+
+Análisis del tiempo de seguimiento disponible para los pacientes.
+
+```{r observationPeriod}
+tryCatch({
+  res_observation <- summariseObservationPeriod(cdm)
+  tableObservationPeriod(res_observation, type = "flextable") %>%
+  flextable::set_table_properties(width = 1, layout = "fixed") %>%
+
+  flextable::width(j = 1, width = 0.8) %>% 
+  flextable::width(j = 2, width = 1.8) %>% 
+  flextable::width(j = 3, width = 0.7) %>% 
+  flextable::width(j = 4, width = 1.7) %>% 
+  flextable::width(j = 5, width = 1.5) %>% 
+  
+  flextable::fontsize(size = 9, part = "all") %>%
+  flextable::valign(valign = "top", part = "all")
+}, error = report_error)
+
+tryCatch({
+  plotObservationPeriod(result = res_observation , colour = "observation_period_ordinal")
+}, error = report_error)
+```
+
+## Volumen de Registros Clínicos
+
+Revisamos el volumen de registros y sujetos para dos tablas principales de datos clínicos: diagnósticos y exposición a fármacos.
+
+```{r clincalRecords}
+tryCatch({
+  res_clinical <- summariseClinicalRecords(
+    cdm = cdm, 
+    omopTableName = c("condition_occurrence", "drug_exposure")
+  )
+  tableClinicalRecords(result = res_clinical, type = "flextable") 
+}, error = report_error)
+```
+
+## Tendencias Temporales
+
+Evolución anual del volumen de registros en las tablas principales.
+
+```{r trend}
+tryCatch({
+  res_trends <- summariseTrend(
+    cdm = cdm,
+    event = c("condition_occurrence", "drug_exposure", "observation", "visit_occurrence"),
+    interval = "years"
+  )
+  tableTrend(res_trends, type = "flextable")
+}, error = report_error)
+
+tryCatch({
+  plotTrend(res_trends, facet = "omop_table", colour = "cdm_name", style = "darwin")
+}, error = report_error)
+```
+
+## Frecuencia de Conceptos y Caracterización Específica
+
+Esta sección permite identificar si existe suficiente densidad de datos para estudios planeados sobre conceptos específicos.
+
+### Conceptos más frecuentes (Drug Exposure)
+
+Identificamos los 10 fármacos más frecuentes en la base de datos, esencial para estudios de farmacovigilancia.
+
+```{r conceptIdCounts}
+tryCatch({
+  res_top_concepts <- summariseConceptIdCounts(
+    cdm = cdm, 
+    omopTableName = "drug_exposure"
+  )
+  tableTopConceptCounts(result = res_top_concepts, type = "flextable")%>%
+  flextable::set_table_properties(width = 1, layout = "fixed") %>%
+
+  flextable::width(j = 1, width = 0.5) %>% 
+  flextable::width(j = 2, width = 5.5) %>% 
+
+  flextable::fontsize(size = 9, part = "all") %>%
+  flextable::valign(valign = "top", part = "all")
+}, error = report_error)
+```
+
+## Calidad de Datos: Valores Faltantes (Missingness)
+
+Analizar los datos faltantes es crucial, ya que impacta directamente en la fiabilidad de los estudios. Revisamos la proporción de valores NULL o NA en columnas esenciales.
+
+```{r missingness}
+tryCatch({
+  res_missing <- summariseMissingData(
+    cdm = cdm, 
+    omopTableName = c("person", "observation_period", "condition_occurrence", "drug_exposure")
+  )
+  tableMissingData(result = res_missing, type = "flextable")
+}, error = report_error)
+```
+
+
+\newpage
+
+## Conclusión y Próximos Pasos
+
+```{r export}
+# --- LÓGICA DE EXPORTACIÓN PARA SHINY ---
+
+# 1. FICHERO PARA ENVIAR: databaseCharacteristics
+#try({
+#  characteristics_cdm <- databaseCharacteristics(cdm = cdm)
+#  
+#  out_name <- if(exists("nombre_centro")) gsub(" ", "_", nombre_centro) else "Centro"
+#  file_shiny <- paste0("Results_SpanishNode_", out_name, "_", format(Sys.Date(), "%Y%m%d"), ".csv")
+#  
+#  exportSummarisedResult(
+#    result = characteristics_cdm,
+#    fileName = file_shiny,
+#    path = getwd()
+#  )
+#})
+
+# 2. FICHERO LOCAL (DETALLADO): Resultados del RMarkdown
+# Contiene los análisis específicos realizados bloque a bloque
+results_list <- list()
+if(exists("res_snapshot")) results_list$snapshot <- res_snapshot
+if(exists("res_person")) results_list$person <- res_person
+if(exists("res_clinical")) results_list$clinical <- res_clinical
+if(exists("res_trends")) results_list$trends <- res_trends
+if(exists("res_missing")) results_list$missing <- res_missing
+
+if(length(results_list) > 0) {
+  local_results <- omopgenerics::bind(results_list[[1]])
+  if(length(results_list) > 1) {
+    for(i in 2:length(results_list)) {
+      local_results <- omopgenerics::bind(local_results, results_list[[i]])
+    }
+  }
+  
+  exportSummarisedResult(
+    result = local_results,
+    fileName = file_local,
+    path = getwd()
+  )
+}
+```
+
+El archivo de resultados agregados `r file_shiny` ha sido generado en su carpeta de trabajo.
+
+Por favor, envíe este archivo CSV al coordinador del estudio para la fase de agregación multicéntrica.
