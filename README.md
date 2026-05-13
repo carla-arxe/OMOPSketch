@@ -5,9 +5,9 @@ Este proyecto contiene el protocolo para realizar la caracterización automátic
 
 El objetivo de este protocolo es generar un perfil demográfico y clínico de cada centro participante para asegurar la viabilidad de futuros estudios multicéntricos, manteniendo la privacidad de los datos.
 
-**Fecha:** Maig 2024
+**Fecha:** Mayo 2024
 
-**Autores:** Carla Arxé, 
+**Autores:** Carla Arxé, Miguel-Angel Mayer, Angela Leis y Juan Manuel Ramírez-Anguita
 
 **Institución:** Hospital del Mar Research Institute
 
