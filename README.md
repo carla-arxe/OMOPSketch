@@ -26,7 +26,7 @@ Abrir el archivo **OmopSketch_SpanishNode.Rproj** con *RStudio*.
     install.packages("renv") # Si no lo tiene instalado
     renv::restore()
 
-*Esto instalará las versiones de OmopSketch, CDMConnector y dplyr necesarias para el Study-a-thon*
+*Esto instalará las versiones de OmopSketch, CDMConnector y dplyr necesarias para el Study-a-thon*.
 
 ### 2. Configuración de la conexión
 
