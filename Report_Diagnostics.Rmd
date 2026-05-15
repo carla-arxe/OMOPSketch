@@ -1,14 +1,17 @@
 ---
-title: "Informe de Caracterización - OHDSI Spanish Node"
-subtitle: "Caracterización automática de datos OMOP CDM"
-author: ""
-#date: "`r format(Sys.Date(), '%d/%m/%Y')`"
-date: "08/05/2026"
+title: "Informe de Caracterización Multicéntrica - First Study-a-thon OHDSI Spain"
+subtitle: "OHDSI Spanish Node"
+author: "`r source('config.R'); nombre_centro`"
+date: "`r format(Sys.Date(), '%d/%m/%Y')`"
 output: 
   pdf_document:
 toc: true
 number_sections: true
 ---
+```{r config, include=FALSE}
+# Cargamos la configuración del archivo externo
+#source("config.R")
+```
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE, error = TRUE)
@@ -18,11 +21,6 @@ library(dplyr)
 library(omopgenerics)
 library(DBI)
 library(flextable)
-```
-
-```{r config, include=FALSE}
-# Cargamos la configuración del archivo externo
-source("config.R")
 ```
 
 ```{r con, include=FALSE}
@@ -200,44 +198,25 @@ tryCatch({
 # --- LÓGICA DE EXPORTACIÓN PARA SHINY ---
 
 # 1. FICHERO PARA ENVIAR: databaseCharacteristics
-#try({
-#  characteristics_cdm <- databaseCharacteristics(cdm = cdm)
-#  
-#  out_name <- if(exists("nombre_centro")) gsub(" ", "_", nombre_centro) else "Centro"
-#  file_shiny <- paste0("Results_SpanishNode_", out_name, "_", format(Sys.Date(), "%Y%m%d"), ".csv")
-#  
-#  exportSummarisedResult(
-#    result = characteristics_cdm,
-#    fileName = file_shiny,
-#    path = getwd()
-#  )
-#})
+try({
+  characteristics_cdm <- databaseCharacteristics(cdm = cdm,
+                                                 sex = TRUE,
+                                                 ageGroup = list(c(0, 9), c(10, 19), c(20, 29), 
+                                                                 c(30, 39), c(40, 49), c(50, 59), 
+                                                                 c(60, 69), c(70, 79), c(80, 89), 
+                                                                 c(90, 99), c(100, 109)))
 
-# 2. FICHERO LOCAL (DETALLADO): Resultados del RMarkdown
-# Contiene los análisis específicos realizados bloque a bloque
-results_list <- list()
-if(exists("res_snapshot")) results_list$snapshot <- res_snapshot
-if(exists("res_person")) results_list$person <- res_person
-if(exists("res_clinical")) results_list$clinical <- res_clinical
-if(exists("res_trends")) results_list$trends <- res_trends
-if(exists("res_missing")) results_list$missing <- res_missing
-
-if(length(results_list) > 0) {
-  local_results <- omopgenerics::bind(results_list[[1]])
-  if(length(results_list) > 1) {
-    for(i in 2:length(results_list)) {
-      local_results <- omopgenerics::bind(local_results, results_list[[i]])
-    }
-  }
+  out_name <- if(exists("nombre_centro")) gsub(" ", "_", nombre_centro) else "Centro"
+  file_shiny <- paste0("Results_SpanishNode_", out_name, "_", format(Sys.Date(), "%Y%m%d"), ".csv")
   
   exportSummarisedResult(
-    result = local_results,
-    fileName = file_local,
+    result = characteristics_cdm,
+    fileName = file_shiny,
     path = getwd()
   )
-}
+})
 ```
 
 El archivo de resultados agregados `r file_shiny` ha sido generado en su carpeta de trabajo.
 
-Por favor, envíe este archivo CSV al coordinador del estudio para la fase de agregación multicéntrica.
+Por favor, envíe este archivo *csv* junto el *pdf* al coordinador del estudio para la fase de agregación multicéntrica.
